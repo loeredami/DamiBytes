@@ -98,7 +98,7 @@ func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc
 	case 0x0019: // out
 	case 0x001A: machine.bitLShift_inst()
 	case 0x001B: machine.bitRShift_inst()
-	case 0x001C: // EXT
+	case 0x001C: machine.ext_inst()
 	case 0x001D: machine.push_inst(payload)
 	case 0x001E: machine.pop_inst(payload)
 	case 0x001F: machine.getReg_inst()
