@@ -1,11 +1,7 @@
 package main
 
 import (
-	"encoding/binary"
-	"fmt"
 	"sync"
-	"syscall"
-	"unsafe"
 )
 
 const (
@@ -41,15 +37,8 @@ type MachineProcess struct {
 }
 
 func makeMachine(memSize uint64, processorCount uint16, regC uint64) *Machine {
-	registers := []uint64{}
-	for i := uint64(0); i < regC; i++ {
-		registers = append(registers, 0)
-	}
-
-	memory := []byte{}
-	for i := uint64(0); i < memSize; i++ {
-		memory = append(memory, 0)
-	}
+	registers := make([]uint64, regC)
+	memory := make([]byte, memSize)
 
 	external_map := map[uint64]uint64{}
 
@@ -76,344 +65,10 @@ func (machine *Machine) makeProcess(programP uint64) {
 }
 
 func (machine *Machine) should_shutdown() bool {
-	return false
+	return len(machine.processes) < 1 
 }
 
-func(machine *Machine) int_pop() {
-	if machine.bit64 {
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-	} else {
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
-	}
-}
-
-func (machine *Machine) add_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := machine.stack64[len(machine.stack64)-1]
-		num2 := machine.stack64[len(machine.stack64)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack64 = append(machine.stack64, num1+num2)
-	} else {
-		num1 := machine.stack32[len(machine.stack32)-1]
-		num2 := machine.stack32[len(machine.stack32)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack32 = append(machine.stack32, num1+num2)
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) sub_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := machine.stack64[len(machine.stack64)-1]
-		num2 := machine.stack64[len(machine.stack64)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack64 = append(machine.stack64, num1-num2)
-	} else {
-		num1 := machine.stack32[len(machine.stack32)-1]
-		num2 := machine.stack32[len(machine.stack32)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack32 = append(machine.stack32, num1-num2)
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) mul_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := machine.stack64[len(machine.stack64)-1]
-		num2 := machine.stack64[len(machine.stack64)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack64 = append(machine.stack64, num1*num2)
-	} else {
-		num1 := machine.stack32[len(machine.stack32)-1]
-		num2 := machine.stack32[len(machine.stack32)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack32 = append(machine.stack32, num1*num2)
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) div_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := machine.stack64[len(machine.stack64)-1]
-		num2 := machine.stack64[len(machine.stack64)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack64 = append(machine.stack64, num1/num2)
-	} else {
-		num1 := machine.stack32[len(machine.stack32)-1]
-		num2 := machine.stack32[len(machine.stack32)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack32 = append(machine.stack32, num1/num2)
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) mod_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := machine.stack64[len(machine.stack64)-1]
-		num2 := machine.stack64[len(machine.stack64)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack64 = append(machine.stack64, num1%num2)
-	} else {
-		num1 := machine.stack32[len(machine.stack32)-1]
-		num2 := machine.stack32[len(machine.stack32)-2]
-		machine.int_pop()
-		machine.int_pop()
-
-		machine.stack32 = append(machine.stack32, num1%num2)
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) addF_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-1]))
-		num2 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1+num2
-
-		machine.stack64 = append(machine.stack64, *(*uint64)(unsafe.Pointer(&(res))))
-	} else {
-		num1 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-1]))
-		num2 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1+num2
-
-		machine.stack32 = append(machine.stack32, *(*uint32)(unsafe.Pointer(&(res))))
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) subF_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-1]))
-		num2 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1-num2
-
-		machine.stack64 = append(machine.stack64, *(*uint64)(unsafe.Pointer(&(res))))
-	} else {
-		num1 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-1]))
-		num2 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1-num2
-
-		machine.stack32 = append(machine.stack32, *(*uint32)(unsafe.Pointer(&(res))))
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) mulF_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-1]))
-		num2 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1*num2
-
-		machine.stack64 = append(machine.stack64, *(*uint64)(unsafe.Pointer(&(res))))
-	} else {
-		num1 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-1]))
-		num2 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1*num2
-
-		machine.stack32 = append(machine.stack32, *(*uint32)(unsafe.Pointer(&(res))))
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) divF_inst() { 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-	if machine.bit64 {
-		num1 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-1]))
-		num2 := *(*float64)(unsafe.Pointer(&machine.stack64[len(machine.stack64)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1/num2
-
-		machine.stack64 = append(machine.stack64, *(*uint64)(unsafe.Pointer(&(res))))
-	} else {
-		num1 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-1]))
-		num2 := *(*float32)(unsafe.Pointer(&machine.stack32[len(machine.stack32)-2]))
-		machine.int_pop()
-		machine.int_pop()
-
-		res := num1/num2
-
-		machine.stack32 = append(machine.stack32, *(*uint32)(unsafe.Pointer(&(res))))
-	}
-	machine.stackOpen = true
-}
-
-func (machine *Machine) store_inst(payload uint64) {
-	instructionSize := 16
-	if !machine.bit64 {
-		instructionSize = 8
-	}
-	valueSizeBits := 4
-	if !machine.bit64 {
-		valueSizeBits = 3
-	}
-	addressBits := 44
-	if !machine.bit64 {
-		addressBits = 21
-	}
-
-	payloadAsBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadAsBytes, payload)
-
-	valueSize := machine.decodePayload(payloadAsBytes, uint64(instructionSize), uint64(valueSizeBits))
-	address := machine.decodePayload(payloadAsBytes, uint64(instructionSize) + uint64(valueSizeBits), uint64(addressBits))
-
-	value := machine.stack64[len(machine.stack64)-1]
-	if !machine.bit64 {
-		value = uint64(machine.stack32[len(machine.stack32)-1])
-	}
-	machine.int_pop()
-
-	machine.store_value(address, value, valueSize)
-}
-
-func (machine *Machine) store_value(address uint64, value uint64, valueSize uint64) {
-	for i := range valueSize {
-		machine.memory[address + i] = (byte(value) >> (i*8)) & 0xFF
-	}
-}
-
-func (machine *Machine) decodePayload(instruction []byte, startBit uint64, bitLength uint64) uint64 {
-	var result uint64 = 0
-	for i := range bitLength {
-		result = result | (((((uint64)(instruction[startBit / 8])) >> (startBit % 8)) & 1) << i)
-		startBit++
-	}
-	return result
-}
-
-func (machine *Machine) load_inst(payload uint64) {
-	instructionSize := uint64(16)
-    if !machine.bit64 {
-        instructionSize = 8
-    }
-
-    valueSizeBits := uint64(4)
-    addressBits := uint64(44)
-    if !machine.bit64 {
-        valueSizeBits = 3
-        addressBits = 21
-    }
-
-	payloadBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadBytes, payload)
-
-	valueSize := machine.decodePayload(payloadBytes, instructionSize, valueSizeBits)
-    address := machine.decodePayload(payloadBytes, instructionSize+valueSizeBits, addressBits)
-
-	value := machine.loadValueFromMemory(address, valueSize)
-
-	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, uint64(value))
-	} else {
-		machine.stack32 = append(machine.stack32, uint32(value))
-	}
-}
-
-
-func (machine *Machine) loadValueFromMemory(address uint64, valueSize uint64) uint64 {
-    if address+valueSize > uint64(len(machine.memory)) {
-        panic("memory out of bounds")
-    }
-
-    value := uint64(0)
-    for i := uint64(0); i < valueSize; i++ {
-        value |= uint64(machine.memory[address+i]) << (i * 8)
-    }
-    return value
-}
-
-func (machine *Machine) run_instruction(instruction uint16, payload uint64) {
+func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc *MachineProcess) {
 	switch instruction {
 	case 0x0000: break 
 	case 0x0001: machine.add_inst()
@@ -428,123 +83,44 @@ func (machine *Machine) run_instruction(instruction uint16, payload uint64) {
 	case 0x000A: machine.store_inst(payload)
 	case 0x000B: machine.load_inst(payload)
 	case 0x000C: machine.syscallHandle()
+	case 0x000D: machine.jump_inst(proc)
+	case 0x000E: machine.comp_inst()
+	case 0x000F: machine.if_inst(payload, proc)
+	case 0x0010: machine.inc_instruction()
+	case 0x0011: machine.dec_instruction()
+	case 0x0012: machine.bitAnd_inst()
+	case 0x0013: machine.bitOr_inst()
+	case 0x0014: machine.bitNot_inst()
+	case 0x0015: machine.bitXor_inst()
+	case 0x0016: machine.interruptOn_inst(proc)
+	case 0x0017: machine.interruptOf_inst()
+	case 0x0018: // in
+	case 0x0019: // out
+	case 0x001A: machine.bitLShift_inst()
+	case 0x001B: machine.bitRShift_inst()
+	case 0x001C: // EXT
+	case 0x001D: machine.push_inst(payload)
+	case 0x001E: machine.pop_inst(payload)
+	case 0x001F: machine.getReg_inst()
+	case 0x0020: machine.setReg_inst()
+	case 0x0021: machine.ptrHere_inst(payload)
+	case 0x0022: machine.free_inst()
+	case 0x0023: machine.go_inst()
+	case 0x0024: machine.pID_inst(proc)
+	case 0x0025: machine.memIncr_inst()
+	case 0x0026: machine.memDec_inst()
+	case 0x0027: machine.bits_inst(payload)
+	case 0x0028: machine.machineData_inst()
+	case 0x0029: machine.here_inst(proc)
+	case 0x002A: machine.exit_inst(proc)
 	default: break
-	}
-}
-
-func (machine *Machine) handle_instruction(address uint64) {
-	if machine.bit64 {
-		inst1 := machine.memory[address]
-		inst2 := machine.memory[address+1]
-
-		payload1 := machine.memory[address+2]
-		payload2 := machine.memory[address+3]
-		payload3 := machine.memory[address+4]
-		payload4 := machine.memory[address+5]
-		payload5 := machine.memory[address+6]
-		payload6 := machine.memory[address+7]
-
-		var instruction uint16 = (uint16(inst1) << 8) + uint16(inst2)
-
-		var payload uint64 = (uint64(payload1) << (8 * 5)) +
-			(uint64(payload2) << (8 * 4)) +
-			(uint64(payload3) << (8 * 3)) +
-			(uint64(payload4) << (8 * 2)) +
-			(uint64(payload5) << 8) +
-			uint64(payload6)
-
-		machine.run_instruction(instruction, payload)
-	} else {
-		inst := machine.memory[address]
-
-		payload1 := machine.memory[address+1]
-		payload2 := machine.memory[address+2]
-		payload3 := machine.memory[address+3]
-
-		var instruction uint16 = uint16(inst)
-
-		var payload uint64 = (uint64(payload3) << (8 * 2)) +
-			(uint64(payload2) << 8) +
-			uint64(payload1)
-
-		machine.run_instruction(instruction, payload)
-	}
-}
-
-func (machine *Machine) syscallHandle() {
-	if machine.bit64 {
-		if len(machine.stack64) < 1 {
-			panic("syscallHandler: no syscall number on stack")
-		}
-
-		syscallNumber := machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-
-		if len(machine.stack64) < 1 {
-			panic("syscallHandler: missing argument count")
-		}
-
-		argCount := machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-
-		if len(machine.stack64) < int(argCount) {
-			panic("syscallHandler: not enough arguments on stack")
-		}
-
-		args := make([]uintptr, argCount)
-		
-		for i := 0; i < int(argCount); i++ {
-			args[i] = uintptr(machine.stack64[len(machine.stack64)-1])
-			machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-		}
-
-		ret, _, err := syscall.SyscallN(uintptr(syscallNumber), args...)
-
-		if err != 0 {
-			panic(fmt.Sprintf("syscall failed: %v", err))
-		}
-
-		machine.stack64 = append(machine.stack64, uint64(ret))
-	} else {
-		if len(machine.stack32) < 1 {
-			panic("syscallHandler: no syscall number on stack")
-		}
-
-		syscallNumber := machine.stack32[len(machine.stack32)-1]
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
-
-		if len(machine.stack32) < 1 {
-			panic("syscallHandler: missing argument count")
-		}
-
-		argCount := machine.stack32[len(machine.stack32)-1]
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
-
-		if len(machine.stack32) < int(argCount) {
-			panic("syscallHandler: not enough arguments on stack")
-		}
-
-		args := make([]uintptr, argCount)
-		
-		for i := 0; i < int(argCount); i++ {
-			args[i] = uintptr(machine.stack32[len(machine.stack32)-1])
-			machine.stack32 = machine.stack32[:len(machine.stack32)-1]
-		}
-
-		ret, _, err := syscall.SyscallN(uintptr(syscallNumber), args...)
-
-		if err != 0 {
-			panic(fmt.Sprintf("syscall failed: %v", err))
-		}
-
-		machine.stack32 = append(machine.stack32, uint32(ret))
 	}
 }
 
 func (machine *Machine) doWork(processes []*MachineProcess, ch chan<- int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for _, proc := range processes {
-		machine.handle_instruction(proc.programP)
+		machine.handle_instruction(proc.programP, proc)
 	}
 	ch <- 0
 }

@@ -1,15 +1,7 @@
 package main
 
-import (
-	"fmt"
-	"syscall"
-	"unsafe"
-
-	"golang.org/x/sys/windows"
-)
-
 func main() {
-	// Example: Virtual Machine setup
+	/*
 	machine := makeMachine(1024, 4, 64)
 
 	machine.bit64 = true
@@ -28,8 +20,6 @@ func main() {
 
 	syscallNumber := proc.Addr()
 
-
-	// Push syscall number, argument count, and arguments
 	machine.stack64 = append(machine.stack64,
 		0,                      // Overlapped (NULL)
 		uint64(len(message)),   // Length of message
@@ -39,9 +29,9 @@ func main() {
 		uint64(syscallNumber),  // Syscall number (WriteFile)
 	)
 
-	// Execute syscall
 	machine.syscallHandle()
 
-	// Print result
 	fmt.Println("Bytes written:", machine.stack64[len(machine.stack64)-1])
+	*/
+	
 }
