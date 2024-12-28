@@ -1,0 +1,116 @@
+bits 64
+
+ptr main
+jump
+
+SDL2:                   "SDL2.dll" 0
+SDL_Init:               "SDL_Init" 0
+SDL_CreateWindow:       "SDL_CreateWindow" 0
+SDL_DestroyWindow:      "SDL_DestroyWindow" 0
+SDL_Quit:               "SDL_Quit" 0
+SDL_Delay:              "SDL_Delay" 0
+
+SDL_INIT_AUDIO:         0x00000010
+SDL_INIT_VIDEO:         0x00000020
+SDL_WINDOW_SHOWN:       0x00000004
+
+procSDL_Init:           0
+procSDL_CreateWindow:   0
+procSDL_DestroyWindow:  0
+procSDL_Quit:           0
+procSDL_Delay:          0
+
+initRet:                0
+
+window_title: "An example sdl window." 0
+
+delay:  3000
+
+width:  600 
+height: 800
+winX:   100
+winY:   100
+
+window_ref: 0
+
+SDL2_DLL: 0
+
+main:
+    # Loading in all required SDL functions
+    ptr SDL2
+    ext
+    store 8 SDL2_DLL
+
+    ptr SDL_CreateWindow
+    load 8 SDL2_DLL
+    func
+    store 8 procSDL_CreateWindow
+
+    ptr SDL_DestroyWindow
+    load 8 SDL2_DLL
+    func
+    store 8 procSDL_DestroyWindow
+
+    ptr SDL_Quit
+    load 8 SDL2_DLL
+    func
+    store 8 procSDL_Quit
+
+    ptr SDL_Delay
+    load 8 SDL2_DLL
+    func
+    store 8 procSDL_Delay
+
+    ptr SDL_Init
+    load 8 SDL2_DLL
+    func
+    store 8 procSDL_Init
+
+    # Initializing SDL
+    load 8 SDL_INIT_VIDEO
+    load 8 SDL_INIT_AUDIO
+    or
+    push 1
+    load 8 procSDL_Init
+    syscall
+    store 8 initRet
+
+    load 8 initRet
+    push 0
+    comp
+    not
+    if 0b10 exit_init
+
+    load 8 SDL_WINDOW_SHOWN
+    load 8 height
+    load 8 width
+    load 8 winX
+    load 8 winY
+    ptr window_title
+    push 6
+    load 8 procSDL_CreateWindow
+    syscall
+    store 8 window_ref
+
+    load 8 window_ref
+    push 0
+    comp
+    if 0b10 exit_init
+
+    load 8 delay
+    push 1
+    load 8 procSDL_Delay
+    syscall
+
+    load 8 window_ref
+    push 1
+    load 8 procSDL_DestroyWindow
+    syscall
+
+exit_init:
+    # Quitting SDL
+    push 0
+    load 8 procSDL_Quit
+    syscall 
+
+    exit

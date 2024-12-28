@@ -6,7 +6,7 @@ import (
 
 func main() {
 	// Temporary Hello World Example Code
-	dat, err := os.ReadFile("./Hello.da")
+	dat, err := os.ReadFile("./sdl.da")
 
 	if err != nil {
 		panic(err)
@@ -20,13 +20,13 @@ func main() {
 
 	parsed := parser.parse()
 
-	err = os.WriteFile("./Hello.dabin", parsed, os.FileMode(int(0777)))
+	err = os.WriteFile("./sdl.dabin", parsed, os.FileMode(int(0777)))
 
 	if err != nil {
 		panic(err)
 	}
 
-	dat, err = os.ReadFile("./Hello.dabin")
+	dat, err = os.ReadFile("./sdl.dabin")
 
 	
 	if err != nil {

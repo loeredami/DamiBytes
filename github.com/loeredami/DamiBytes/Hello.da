@@ -10,10 +10,10 @@ write:    "WriteFile"    0x00
 message:  "Hello World\n" 0x00
 
 writeAddr: 0x00
+kernelAddr: 0x00
 
 main:
     # Pushes the memory address of the strings.
-    ptr write
     ptr kernel
 
     # This first gets the kernel dll file name from the stack, then the function name.
@@ -22,15 +22,22 @@ main:
 
     # Pop the last thing from the stack and put it in a memory address, first size is given in bytes.
     # 8 bytes -> 64 Bits
+    store 8 kernelAddr
+
+    ptr write
+    load 8 kernelAddr
+    func
+
     store 8 writeAddr
 
     # Arguments given in reverse order.
     push 0
     push 12
     ptr message
+    #stdout {
     push 0x08
     data
-
+    #}
     # Number of Arguments
     push 4
 

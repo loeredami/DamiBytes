@@ -149,6 +149,33 @@ func (parser *Parser) storeInst() {
         parser.advance()
 }
 
+func (parser *Parser) ifInst() {
+        parser.advance()
+        compT := parser.curToken.(*TokenWithNumber).val 
+
+        // Ensure size is within the valid range
+        if compT > 15 { // Assuming size is 4 bits
+                panic("Invalid check type")
+        }
+
+        parser.advance()
+        memAddr := parser.labelMap[parser.curToken.(*TokenWithString).val]
+
+        var payload uint64
+
+        // Combine size and memAddr with proper bit shifting and masking
+        if parser.bit64 {
+                sizeBits := uint64(compT) & 0x0F 
+                payload = (sizeBits << 44) | memAddr 
+        } else {
+                sizeBits := uint64(compT) & 0x07 
+                payload = (sizeBits << 21) | memAddr 
+        }
+
+        parser.quicklyPutInst(0x000F, payload) 
+        parser.advance()
+}
+
 func (parser *Parser) loadInst() {
         parser.advance()
         size := parser.curToken.(*TokenWithNumber).val 
@@ -206,7 +233,7 @@ func (parser *Parser) handleInstruction() {
 	case "syscall": parser.simpleInstNoPayload(0x000C)
 	case "jump": parser.simpleInstNoPayload(0x000D)
 	case "comp": parser.simpleInstNoPayload(0x000E)
-	case "if": parser.nextIsPayload(0x000F)
+	case "if": parser.ifInst()
 	case "incr": parser.simpleInstNoPayload(0x0010)
 	case "decr": parser.simpleInstNoPayload(0x0011)
 	case "and": parser.simpleInstNoPayload(0x0012)
@@ -239,6 +266,7 @@ func (parser *Parser) handleInstruction() {
 		}
 
 	case "data": parser.simpleInstNoPayload(0x0028)
+	case "func": parser.simpleInstNoPayload(0x0029)
 	case "exit": parser.simpleInstNoPayload(0x002A)
 
 	default:

@@ -117,7 +117,7 @@ func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc
 	case 0x0026: machine.memDec_inst()
 	case 0x0027: machine.bits_inst(payload)
 	case 0x0028: machine.machineData_inst()
-	case 0x0029: //machine.here_inst(proc)
+	case 0x0029: machine.func_inst()
 	case 0x002A: machine.exit_inst(proc)
 	default: break
 	}

@@ -60,7 +60,7 @@ type Lexer struct {
 }
 
 func makeLexer(text string) *Lexer {
-	lexer := &Lexer{text, ' ', 0, false, []Token{}}
+	lexer := &Lexer{text+" ", ' ', 0, false, []Token{}}
 
 	lexer.updateChar()
 
@@ -86,7 +86,7 @@ func (lexer *Lexer) collectIdentifierOrLabel() {
 	tokenType := tokenTypes.Identifier
 
 	for {
-		if !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_", rune(lexer.curChar)) {
+		if !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_", rune(lexer.curChar)) {
 			break
 		}
 

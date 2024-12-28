@@ -21,19 +21,12 @@ func (machine *Machine) ext_inst() {
 	machine.stackOpen = false
 
 	dllNamePtr := uint64(0)
-	funcNamePtr := uint64(0)
 
 	if machine.bit64 {
 		dllNamePtr = machine.stack64[len(machine.stack64)-1]
 		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-
-		funcNamePtr = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
 	} else {
 		dllNamePtr = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
-
-		funcNamePtr = uint64(machine.stack32[len(machine.stack32)-1])
 		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
 	}
 
@@ -43,18 +36,52 @@ func (machine *Machine) ext_inst() {
 		panic(err)
 	}
 
+	dllAddr := uintptr(unsafe.Pointer(dll))
+
+	if machine.bit64 {
+		machine.stack64 = append(machine.stack64, uint64(dllAddr))
+	} else {
+		machine.stack32 = append(machine.stack32, uint32(dllAddr))
+	}
+
+	machine.stackOpen = true
+}
+
+func (machine *Machine) func_inst() {
+	for {
+		if machine.stackOpen {
+			break
+		}
+	}
+	machine.stackOpen = false
+
+	dllPtr := uint64(0)
+	funcNamePtr := uint64(0)
+
+	if machine.bit64 {
+		dllPtr = machine.stack64[len(machine.stack64)-1]
+		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		funcNamePtr = machine.stack64[len(machine.stack64)-1]
+		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	} else {
+		dllPtr = uint64(machine.stack32[len(machine.stack64)-1])
+		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		funcNamePtr = uint64(machine.stack32[len(machine.stack32)-1])
+		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+	}
+
+	dll := *(*windows.DLL)(unsafe.Pointer(uintptr(dllPtr)))
+
 	proc, err := dll.FindProc(getStringFromByte((*byte)(unsafe.Pointer(uintptr(funcNamePtr)))))
-	
+
 	if err != nil {
 		panic(err)
 	}
 
-	syscallNumber := proc.Addr()
-
 	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, uint64(syscallNumber))
+		machine.stack64 = append(machine.stack64, uint64(proc.Addr()))
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(syscallNumber))
+		machine.stack32 = append(machine.stack32, uint32(proc.Addr()))
 	}
 
 	machine.stackOpen = true
@@ -90,23 +117,17 @@ func (machine *Machine) jump_inst(procC *MachineProcess) {
 }
 
 func (machine *Machine) if_inst(payload uint64, proc *MachineProcess) {
-	instructionSize := uint64(16)
-	if !machine.bit64 {
-		instructionSize = 8
-	}
-
-	compSizeBits := uint64(4)
-	addressBits := uint64(44)
-	if !machine.bit64 {
-		compSizeBits = 3
-		addressBits = 21
-	}
-
 	payloadBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(payloadBytes, payload)
 
-	compType := machine.decodePayload(payloadBytes, instructionSize, compSizeBits)
-	memoryOffset := machine.decodePayload(payloadBytes, instructionSize+compSizeBits, addressBits)
+	addressBits := 44
+	if !machine.bit64 {
+			addressBits = 21
+	}
+
+	compType := (payload >> (addressBits)) & 0x0F 
+
+	memoryOffset := payload & ((1 << addressBits) - 1) 
 
 	for {
 		if machine.stackOpen {
@@ -324,7 +345,6 @@ func (machine *Machine) machineData_inst() {
 
 func (machine *Machine) syscallHandle() {
 	if machine.bit64 {
-
 		for {
 			if machine.stackOpen {
 				break

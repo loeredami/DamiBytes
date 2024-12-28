@@ -46,5 +46,5 @@
 0x0026 Mem Decrease # Unexpand (?) Memory
 0x0027 Bits
 0x0028 Machine Data
-0x0029 --
+0x0029 FUNC
 0x002A Exit
