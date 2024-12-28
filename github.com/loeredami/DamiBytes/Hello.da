@@ -1,0 +1,44 @@
+# Set the bit mode
+bits 64
+
+# Jump to memory address to where the main marker is.
+ptr main
+jump
+
+kernel:   "kernel32.dll" 0x00
+write:    "WriteFile"    0x00 
+message:  "Hello World\n" 0x00
+
+writeAddr: 0x00
+
+main:
+    # Pushes the memory address of the strings.
+    ptr write
+    ptr kernel
+
+    # This first gets the kernel dll file name from the stack, then the function name.
+    # It then gets the syscall address of the function name from the DLL and pushes it on the stack 
+    ext
+
+    # Pop the last thing from the stack and put it in a memory address, first size is given in bytes.
+    # 8 bytes -> 64 Bits
+    store 8 writeAddr
+
+    # Arguments given in reverse order.
+    push 0
+    push 12
+    ptr message
+    push 0x08
+    data
+
+    # Number of Arguments
+    push 4
+
+    # Get the syscall Number from memory and push it on the stack once again. 
+    load 8 writeAddr
+
+    # Finally call the syscall
+    syscall
+
+    # This shuts down the current process, since it's the only one, the VM should simply shutdown.
+    exit

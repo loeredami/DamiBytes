@@ -76,16 +76,17 @@ func (machine *Machine) jump_inst(procC *MachineProcess) {
 	machine.stackOpen = false
 
 	if machine.bit64 {
-		address = machine.stack64[len(machine.stack64)-1] - 1
+		address = machine.stack64[len(machine.stack64)-1]
 		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
 	} else {
-		address = uint64(machine.stack32[len(machine.stack32)-1]) - 1
+		address = uint64(machine.stack32[len(machine.stack32)-1])
 		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
 	}
 
 	machine.stackOpen = true
 
-	procC.programP = address
+
+	procC.programP = (*byte)(unsafe.Pointer((uintptr)(address)))
 }
 
 func (machine *Machine) if_inst(payload uint64, proc *MachineProcess) {
@@ -129,11 +130,11 @@ func (machine *Machine) if_inst(payload uint64, proc *MachineProcess) {
 
 	if (compType & uint64(comparisonResults.isEqual)) != 0 {
 		if (value & uint64(comparisonResults.isEqual)) != 0 {
-			proc.programP = memoryOffset - 1
+			proc.programP = (*byte)(unsafe.Pointer(uintptr(memoryOffset) - 1))
 		}
 	} else if (compType & uint64(comparisonResults.isGreater)) != 0 {
 		if (value & uint64(comparisonResults.isGreater)) != 0 {
-			proc.programP = memoryOffset - 1
+			proc.programP = (*byte)(unsafe.Pointer(uintptr(memoryOffset) - 1))
 		}
 	}
 }
@@ -192,7 +193,7 @@ func (machine *Machine) go_inst() {
 
 	machine.stackOpen = true
 
-	machine.makeProcess(address-1)
+	machine.makeProcess((*byte)(unsafe.Pointer(uintptr(address)-1)))
 }
 
 func (machine *Machine) pID_inst(proc *MachineProcess) {
@@ -303,6 +304,18 @@ func (machine *Machine) machineData_inst() {
 			panic(err)
 		}
 		streamStringToBytePointer(messagePtr, path + string(rune(0x00)))
+	case 0x0007:
+		if machine.bit64 {
+			machine.stack64 = append(machine.stack64, uint64(syscall.Stdin))
+		} else {
+			machine.stack32 = append(machine.stack32, uint32(syscall.Stdin))
+		}
+	case 0x0008:
+		if machine.bit64 {
+			machine.stack64 = append(machine.stack64, uint64(syscall.Stdout))
+		} else {
+			machine.stack32 = append(machine.stack32, uint32(syscall.Stdout))
+		}
 	}
 
 	machine.stackOpen = true

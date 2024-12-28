@@ -1,5 +1,11 @@
 package main
 
+import (
+	"encoding/binary"
+	"slices"
+	"unsafe"
+)
+
 func (machine *Machine) int_pop() {
 	if machine.bit64 {
 		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
@@ -8,50 +14,95 @@ func (machine *Machine) int_pop() {
 	}
 }
 
-func (machine *Machine) decodePayload(instruction []byte, startBit uint64, bitLength uint64) uint64 {
-	var result uint64 = 0
-	for i := range bitLength {
-		result = result | (((((uint64)(instruction[startBit/8])) >> (startBit % 8)) & 1) << i)
-		startBit++
-	}
-	return result
+func PointerToNextByte(ptr *byte) *byte {
+        // Calculate the address of the next byte
+        nextBytePtr := unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 1)
+
+        // Cast the pointer back to *byte
+        return (*byte)(nextBytePtr)
 }
 
-func (machine *Machine) handle_instruction(address uint64, proc *MachineProcess) {
+func (machine *Machine) decodePayload(instruction []byte, startBit uint64, bitLength uint64) uint64 {
+        // Calculate starting and ending byte indices
+        startByte := startBit / 8
+        endByte := (startBit + bitLength - 1) / 8
+
+        // Handle out-of-bounds access
+        if endByte >= uint64(len(instruction)) {
+                panic("decodePayload: Out of bounds access")
+        }
+
+        // Calculate bit offsets within the starting and ending bytes
+        startBitOffset := startBit % 8
+        endBitOffset := (startBit + bitLength - 1) % 8
+
+        // Extract the field value
+        var result uint64
+        for i := startByte; i <= endByte; i++ {
+                if i == startByte {
+                        // Extract bits from the starting byte
+                        result |= uint64(instruction[i]) >> startBitOffset
+                } else if i == endByte {
+                        // Extract bits from the ending byte
+                        result |= uint64(instruction[i]) << (8 - endBitOffset)
+                } else {
+                        // Extract all bits from intermediate bytes
+                        result |= uint64(instruction[i]) << ((i - startByte) * 8)
+                }
+        }
+
+        // Create a mask to extract the desired bits
+        mask := uint64(0xFF) >> (8 - bitLength) 
+        return result & mask
+}
+
+func GetBytesFromPointer(ptr *byte, offset int, size int) []byte {
+        if size <= 0 || offset < 0 {
+                return nil
+        }
+
+        // Ensure the pointer is within a valid memory range
+        // This check is crucial for safety, but might require more robust logic
+        // depending on your specific use case.
+        if ptr == nil {
+                return nil
+        }
+
+        // Calculate the adjusted pointer with the offset
+        offsetPtr := unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + uintptr(offset))
+
+        // Create a slice pointing to the memory region
+        slice := (*[1 << 30]byte)(offsetPtr)[:size:size] 
+        return slice
+}
+
+func (machine *Machine) handle_instruction(address *byte, proc *MachineProcess) {
 	if machine.bit64 {
-		inst1 := machine.memory[address]
-		inst2 := machine.memory[address+1]
+		full_inst := GetBytesFromPointer(address, 0, 8)
+		slices.Reverse(full_inst)
+		
+		instruction := binary.BigEndian.Uint64(full_inst) & 0xFFFF000000000000
 
-		payload1 := machine.memory[address+2]
-		payload2 := machine.memory[address+3]
-		payload3 := machine.memory[address+4]
-		payload4 := machine.memory[address+5]
-		payload5 := machine.memory[address+6]
-		payload6 := machine.memory[address+7]
+		payload := binary.BigEndian.Uint64(full_inst) & 0x0000FFFFFFFFFFFF
 
-		var instruction uint16 = (uint16(inst1) << 8) + uint16(inst2)
+		add := 8
 
-		var payload uint64 = (uint64(payload1) << (8 * 5)) +
-			(uint64(payload2) << (8 * 4)) +
-			(uint64(payload3) << (8 * 3)) +
-			(uint64(payload4) << (8 * 2)) +
-			(uint64(payload5) << 8) +
-			uint64(payload6)
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+uintptr(add)))
+	
 
-		machine.run_instruction(instruction, payload, proc)
+		machine.run_instruction(uint16(instruction>>(32+16)), payload, proc)
 	} else {
-		inst := machine.memory[address]
+		full_inst := GetBytesFromPointer(address, 0, 4)
+		slices.Reverse(full_inst)
 
-		payload1 := machine.memory[address+1]
-		payload2 := machine.memory[address+2]
-		payload3 := machine.memory[address+3]
+		instruction := binary.BigEndian.Uint32(full_inst) & 0xFF000000
 
-		var instruction uint16 = uint16(inst)
+		payload := binary.BigEndian.Uint32(full_inst) &  0x00FFFFFF
 
-		var payload uint64 = (uint64(payload3) << (8 * 2)) +
-			(uint64(payload2) << 8) +
-			uint64(payload1)
+		add := 4
 
-		machine.run_instruction(instruction, payload, proc)
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+uintptr(add)))
+	
+		machine.run_instruction(uint16(instruction>>(16+8)), uint64(payload), proc)
 	}
 }

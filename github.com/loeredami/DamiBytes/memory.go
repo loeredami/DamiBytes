@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"unsafe"
 )
 
@@ -23,7 +22,7 @@ func getStringFromByte(startPtr *byte) string {
 	}
 	return str
 }
-
+/*
 func (machine *Machine) here_inst(proc *MachineProcess) {
 	for {
 		if machine.stackOpen {
@@ -34,13 +33,14 @@ func (machine *Machine) here_inst(proc *MachineProcess) {
 	machine.stackOpen = false
 
 	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, proc.pID)
+		machine.stack64 = append(machine.stack64, uint64(uintptr(unsafe.Pointer(proc.programP))))
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(proc.pID))
+		machine.stack32 = append(machine.stack32, uint32(uintptr(unsafe.Pointer(proc.programP))))
 	}
 
 	machine.stackOpen = true
 }
+*/
 
 func (machine *Machine) memIncr_inst() {
 	var size uint64 = 0
@@ -157,31 +157,22 @@ func (machine *Machine) loadValueFromMemory(address uint64, valueSize uint64) ui
 
 func (machine *Machine) store_value(address uint64, value uint64, valueSize uint64) {
 	for i := range valueSize {
-		machine.memory[address + i] = (byte(value) >> (i*8)) & 0xFF
+		machine.memory[address+i] = (byte(value >> (i*8))) & 0xFF
 	}
 }
 
 
 func (machine *Machine) store_inst(payload uint64) {
-	instructionSize := 16
-	if !machine.bit64 {
-		instructionSize = 8
-	}
-	valueSizeBits := 4
-	if !machine.bit64 {
-		valueSizeBits = 3
-	}
 	addressBits := 44
 	if !machine.bit64 {
-		addressBits = 21
+			addressBits = 21
 	}
 
-	payloadAsBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadAsBytes, payload)
+	// Extract valueSize
+	valueSize := (payload >> (addressBits)) & 0x0F 
 
-	valueSize := machine.decodePayload(payloadAsBytes, uint64(instructionSize), uint64(valueSizeBits))
-	address := machine.decodePayload(payloadAsBytes, uint64(instructionSize) + uint64(valueSizeBits), uint64(addressBits))
-
+	// Extract address
+	address := payload & ((1 << addressBits) - 1) 
 	for {
 		if machine.stackOpen {
 			break
@@ -190,35 +181,29 @@ func (machine *Machine) store_inst(payload uint64) {
 
 	machine.stackOpen = false
 
-	value := machine.stack64[len(machine.stack64)-1]
+	
+	var value uint64
+
 	if !machine.bit64 {
 		value = uint64(machine.stack32[len(machine.stack32)-1])
+	} else {
+		value = machine.stack64[len(machine.stack64)-1]
 	}
 	machine.int_pop()
+	machine.stackOpen = true
 
 	machine.store_value(address, value, valueSize)
-	machine.stackOpen = true
 }
 
 func (machine *Machine) load_inst(payload uint64) {
-	instructionSize := uint64(16)
-    if !machine.bit64 {
-        instructionSize = 8
-    }
+	addressBits := 44
+	if !machine.bit64 {
+			addressBits = 21
+	}
 
-    valueSizeBits := uint64(4)
-    addressBits := uint64(44)
-    if !machine.bit64 {
-        valueSizeBits = 3
-        addressBits = 21
-    }
+	valueSize := (payload >> (addressBits)) & 0x0F 
 
-	payloadBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadBytes, payload)
-
-	valueSize := machine.decodePayload(payloadBytes, instructionSize, valueSizeBits)
-    address := machine.decodePayload(payloadBytes, instructionSize+valueSizeBits, addressBits)
-
+	address := payload & ((1 << addressBits) - 1) 
 	for {
 		if machine.stackOpen {
 			break

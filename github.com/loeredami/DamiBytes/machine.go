@@ -30,7 +30,7 @@ type Machine struct {
 }
 
 type MachineProcess struct {
-	programP uint64
+	programP *byte
 	machine  *Machine
 	pID      uint64
 	state    byte
@@ -52,7 +52,13 @@ func makeMachine(memSize uint64, processorCount uint16, regC uint64) *Machine {
 	}
 }
 
-func (machine *Machine) makeProcess(programP uint64) {
+func (machine *Machine) streamInProgram(program []byte, start uint64) {
+	for i := range len(program) {
+		machine.memory[int(start)+i] = program[i]
+	}
+}
+
+func (machine *Machine) makeProcess(programP *byte) {
 	machine.lastPID += 1
 	PID := machine.lastPID
 	state := PROCESS_ACTIVE
@@ -111,7 +117,7 @@ func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc
 	case 0x0026: machine.memDec_inst()
 	case 0x0027: machine.bits_inst(payload)
 	case 0x0028: machine.machineData_inst()
-	case 0x0029: machine.here_inst(proc)
+	case 0x0029: //machine.here_inst(proc)
 	case 0x002A: machine.exit_inst(proc)
 	default: break
 	}
@@ -121,7 +127,7 @@ func (machine *Machine) doWork(processes []*MachineProcess, ch chan<- int, wg *s
 	defer wg.Done()
 	for _, proc := range processes {
 		machine.handle_instruction(proc.programP, proc)
-	}
+		}
 	ch <- 0
 }
 
@@ -137,7 +143,6 @@ func (machine *Machine) tick() {
 		if (proc.state & PROCESS_SLEEPING) != 0 {
 			continue
 		}
-		proc.programP++
 	}
 
 	for _, val := range flagged_for_removal {
@@ -178,10 +183,13 @@ func (machine *Machine) tick() {
 			panic([]int{i, result})
 		}
 	}
+
+	
+	
 }
 
 func (machine *Machine) run() {
-	machine.makeProcess(0)
+	machine.makeProcess(&machine.memory[0])
 	for {
 		if machine.should_shutdown() {
 			break

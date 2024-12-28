@@ -1,7 +1,5 @@
 package main
 
-import "encoding/binary"
-
 func (machine *Machine) comp_inst() {
 	var val1 uint64
 	var val2 uint64
@@ -233,21 +231,6 @@ func (machine *Machine) bitXor_inst() {
 	machine.stackOpen = true
 }
 func (machine *Machine) push_inst(payload uint64) {
-	instructionSize := uint64(16)
-	if !machine.bit64 {
-		instructionSize = 8
-	}
-
-	addressBits := uint64(48)
-	if !machine.bit64 {
-		addressBits = 24
-	}
-
-	payloadBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadBytes, payload)
-
-	number := machine.decodePayload(payloadBytes, instructionSize, addressBits)
-
 	for {
 		if machine.stackOpen {
 			break
@@ -257,29 +240,16 @@ func (machine *Machine) push_inst(payload uint64) {
 	machine.stackOpen = false
 
 	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, number)
+		machine.stack64 = append(machine.stack64, payload)
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(number))
+		machine.stack32 = append(machine.stack32, uint32(payload))
 	}
 
 	machine.stackOpen = true
 }
 
 func (machine *Machine) pop_inst(payload uint64) {
-	instructionSize := uint64(16)
-	if !machine.bit64 {
-		instructionSize = 8
-	}
-
-	registryIdxSize := uint64(48)
-	if !machine.bit64 {
-		registryIdxSize = 24
-	}
-
-	payloadBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadBytes, payload)
-
-	registryIdx := machine.decodePayload(payloadBytes, instructionSize, registryIdxSize)
+	registryIdx := payload
 
 	for {
 		if machine.stackOpen {
