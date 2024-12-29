@@ -68,7 +68,7 @@ Since any data can be interpreted as an instruction you need to be careful, and 
 
 Every part of the programming, can be jumped to or linked to whether it is an instruction or not, using labels.
 
-```
+```sh
 bits 64
 
 # Pushes the pointer to main, it will to the stack
@@ -91,7 +91,7 @@ This includes instructions, instructions however will collect their required arg
 
 Strings will be treated as bytes array and therefore will take less space per character, rather numbers taking the amount of bits depending on the bits mode stated above it, or whatever the compiler was set to at the moment.
 
-```
+```sh
 bits 64
 
 # Jumping so "Hello, f" will not be treated as an instruction
