@@ -337,6 +337,18 @@ func (machine *Machine) machineData_inst() {
 		} else {
 			machine.stack32 = append(machine.stack32, uint32(syscall.Stdout))
 		}
+	case 0x0009:
+		if machine.bit64 {
+			machine.stack64 = append(machine.stack64, uint64(len(machine.memory)))
+		} else {
+			machine.stack32 = append(machine.stack32, uint32(len(machine.memory)))
+		}
+	case 0x000A:
+		if machine.bit64 {
+			machine.stack64 = append(machine.stack64, uint64(len(machine.stack64)))
+		} else {
+			machine.stack32 = append(machine.stack32, uint32(len(machine.stack32)))
+		}
 	}
 
 	machine.stackOpen = true

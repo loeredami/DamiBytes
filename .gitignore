@@ -26,3 +26,6 @@ go.work.sum
 
 # Compiled files
 *.dabin
+
+# Build Packages
+*zip

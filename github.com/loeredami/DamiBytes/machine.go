@@ -183,9 +183,6 @@ func (machine *Machine) tick() {
 			panic([]int{i, result})
 		}
 	}
-
-	
-	
 }
 
 func (machine *Machine) run() {
