@@ -117,3 +117,12 @@ If you want to brute force a program, or some working byte code, a good starting
 # Build
 build it in the *folder* `github.com/loeredami/DamiBytes` with `go build .`, you may require to check the `go.mod` for installing some little packages nobody can ever be bothered writing themselves. Except of course those who wrote the package.
 
+# Funding
+As transparency of financing for LoereDami Studios was a concern, here is how we barely finance ourselves:
+
+* Ko-Fi Donations
+* Christmas/Birthday Gifts
+* Exploitation of Government social services
+* Ko-Fi Discord/Twitch Bot Commissions
+* Ko-Fi Music Commissions
+* (Retired) Ko-Fi Art Commissions
