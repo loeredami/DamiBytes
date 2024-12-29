@@ -17,7 +17,7 @@ DaBytes was originally created for a higher level programming language I will be
 Hey listen, I don't have this terminology really figured out, I really just code, ok?
 
 # Technical Stuff, because someone cares
-DaBytes has a 64 Bit and 32 Bit mode, it first boots into 32 Bit mode, and you 100% of the time have to manually switch to 64 Nit mode, because the 32 Bit mode essentially can not do anything, as on Windows 11 there is only 64 Bit, and pointers usually always will be in 64 Bit. (Windows 11 btw. I wish support stayed for 10, and I had an proper SSD for dual booting Linux. Please give me money I have my Ko-Fi linked on the side.)
+DaBytes has a 64 Bit and 32 Bit mode, it first boots into 32 Bit mode, and you 100% of the time have to manually switch to 64 Bit mode, because the 32 Bit mode essentially can not do anything, as on Windows 11 there is only 64 Bit, and pointers usually always will be in 64 Bit. (Windows 11 btw. I wish support stayed for 10, and I had an proper SSD for dual booting Linux. Please give me money I have my Ko-Fi linked on the side.)
 
 If you somehow get this to run on a 32 Bit machine, you may have to rewrite everything to use 32 Bit, or figure out a way to automatically detect the proper Bit mode to use.
 
@@ -64,9 +64,9 @@ If output path is not given it will replace the `da` with `dabin`. (Not da trash
 # DaAssembly
 DaAssembly can be imagined like assembly, but simplified, directly streamed into memory.
 
-Since any data can be interpreted as an instruction you need to be careful, and check every section that is meant for data will be jumped over.
+Since any data can be interpreted as an instruction you need to be careful, and make sure every section that is meant for data will be jumped over.
 
-Every part of the programming, can be jumped to or linked to whether it is an instruction or not, using labels.
+Every part of the program, can be jumped to or linked to whether it is an instruction or not, using labels.
 
 ```sh
 bits 64
@@ -83,7 +83,7 @@ main:
 
 Labels are entirely handled by the compiler, they basically do not exist in the program itself, instead it uses witchcraft to jump to the given memory address.
 
-In other words, the compiler knows how the machine will find the memory address before hand, and insert the appropriate value.
+In other words, the compiler knows how the machine will find the memory address before hand, and insert the appropriate value, by looking into the future.
 
 Usually everything will be treated as data, that will be turned into values.
 
@@ -105,6 +105,8 @@ main:
     exit
 ```
 
+You may also notice: indenting does not matter, you can use spaces, tabs, and new liens as you please.
+
 # More Documentation Soon
 As there is not proper documentation yet, a release is also just something for the future, however I am considering a Snapshot release for the new Year 2025.
 
@@ -115,7 +117,7 @@ The instruction_codes.txt may be a good enough reference for now, however most o
 If you want to brute force a program, or some working byte code, a good starting point would be the ext instruction for loading in a dll. Or the func instruction for loading a function from the dll.
 
 # Build
-build it in the *folder* `github.com/loeredami/DamiBytes` with `go build .`, you may require to check the `go.mod` for installing some little packages nobody can ever be bothered writing themselves. Except of course those who wrote the package.
+Build it in the *folder* `github.com/loeredami/DamiBytes` with `go build .`, you may require to check the `go.mod` for installing some little packages nobody can ever be bothered writing themselves. Except of course those who wrote the package.
 
 # Funding
 As transparency of financing for LoereDami Studios was a concern, here is how we barely finance ourselves:
