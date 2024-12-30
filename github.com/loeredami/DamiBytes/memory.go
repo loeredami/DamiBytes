@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"unsafe"
 )
 
@@ -90,7 +91,29 @@ func (machine *Machine) free_inst(proc *MachineProcess) {
 	}
 }
 
-func (machine *Machine) ptrHere_inst(payload uint64, proc *MachineProcess) {
+func (machine *Machine) ptrHere_inst(proc *MachineProcess) {
+	var payload uint64
+	if proc.bit64 {
+		bytes := GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		8,
+		)
+		payload = binary.BigEndian.Uint64(bytes)
+
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8))
+	} else {
+		bytes := GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))-4)),
+		0,
+		4,
+		)
+
+		payload = uint64(binary.BigEndian.Uint32(bytes))
+
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+4))
+	}
+
 	value := uintptr(unsafe.Pointer(&machine.memory[payload]))
 
 	if proc.bit64 {
@@ -119,17 +142,46 @@ func (machine *Machine) store_value(address uint64, value uint64, valueSize uint
 }
 
 
-func (machine *Machine) store_inst(payload uint64, proc *MachineProcess) {
-	addressBits := 44
-	if !proc.bit64 {
-			addressBits = 21
+func (machine *Machine) store_inst(proc *MachineProcess) {
+	var payload, payload2 uint64
+	var bytes, bytes2 []byte
+	if proc.bit64 {
+		bytes = GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		8,
+		)
+
+		bytes2 =GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8)),
+		0,
+		8,
+		)
+
+		payload = binary.BigEndian.Uint64(bytes)
+		payload2 = binary.BigEndian.Uint64(bytes2)
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+16))
+	} else {
+		bytes = GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		4,
+		)
+
+		bytes2 =GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8)),
+		0,
+		4,
+		)
+
+		payload = uint64(binary.BigEndian.Uint32(bytes))
+		payload2 = uint64(binary.BigEndian.Uint32(bytes2))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+16))
 	}
 
-	// Extract valueSize
-	valueSize := (payload >> (addressBits)) & 0x0F 
 
-	// Extract address
-	address := payload & ((1 << addressBits) - 1) 
+	valueSize := payload
+	address := payload2
 	
 	var value uint64
 
@@ -143,15 +195,37 @@ func (machine *Machine) store_inst(payload uint64, proc *MachineProcess) {
 	machine.store_value(address, value, valueSize)
 }
 
-func (machine *Machine) load_inst(payload uint64, proc *MachineProcess) {
-	addressBits := 44
-	if !proc.bit64 {
-			addressBits = 21
+func (machine *Machine) load_inst(proc *MachineProcess) {
+	var payload, payload2 uint64
+	if proc.bit64 {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		8,
+		))
+		payload2 = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8)),
+		0,
+		8,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+16))
+	} else {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		4,
+		))
+		payload2 = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+4)),
+		0,
+		4,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8))
 	}
 
-	valueSize := (payload >> (addressBits)) & 0x0F 
+	valueSize := payload
 
-	address := payload & ((1 << addressBits) - 1) 
+	address := payload2
 
 	value := machine.loadValueFromMemory(address, valueSize)
 

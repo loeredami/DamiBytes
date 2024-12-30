@@ -1,5 +1,10 @@
 package main
 
+import (
+	"encoding/binary"
+	"unsafe"
+)
+
 func (machine *Machine) comp_inst(proc *MachineProcess) {
 	var val1 uint64
 	var val2 uint64
@@ -170,24 +175,53 @@ func (machine *Machine) bitXor_inst(proc *MachineProcess) {
 		proc.stack32 = append(proc.stack32, uint32(res))
 	}
 }
-func (machine *Machine) push_inst(payload uint64, proc *MachineProcess) {
+func (machine *Machine) push_inst(proc *MachineProcess) {
+	var payload uint64
+
 	if proc.bit64 {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+			(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+			0,
+			8,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)) + 8))
 		proc.stack64 = append(proc.stack64, payload)
 	} else {
+		payload = uint64(binary.BigEndian.Uint32(GetBytesFromPointer(
+			(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+			0,
+			4,
+		)))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)) + 4))
 		proc.stack32 = append(proc.stack32, uint32(payload))
 	}
 }
 
-func (machine *Machine) pop_inst(payload uint64, proc *MachineProcess) {
-	registryIdx := payload
+func (machine *Machine) pop_inst(proc *MachineProcess) {
+	var payload uint64
 	value := uint64(0)
 
 	if proc.bit64 {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+			(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+			0,
+			8,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)) + 8))
 		value = proc.stack64[len(proc.stack64)-1]
 		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
+		payload = uint64(binary.BigEndian.Uint32(GetBytesFromPointer(
+			(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+			0,
+			4,
+		)))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)) + 4))
 		value = uint64(proc.stack32[len(proc.stack32)-1])
 		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
+
+	registryIdx := payload
+
 	machine.regs[registryIdx] = value
 }

@@ -85,19 +85,37 @@ func (machine *Machine) jump_inst(procC *MachineProcess) {
 	procC.programP = (*byte)(unsafe.Pointer((uintptr)(address)))
 }
 
-func (machine *Machine) if_inst(payload uint64, proc *MachineProcess) {
-	payloadBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(payloadBytes, payload)
-
-	addressBits := 44
-	if !proc.bit64 {
-			addressBits = 21
+func (machine *Machine) if_inst(proc *MachineProcess) {
+	var payload, payload2 uint64
+	if proc.bit64 {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		8,
+		))
+		payload2 = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8)),
+		0,
+		8,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+16))
+	} else {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		4,
+		))
+		payload2 = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+4)),
+		0,
+		4,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8))
 	}
 
-	compType := (payload >> (addressBits)) & 0x0F 
+	compType := payload
 
-	memoryOffset := payload & ((1 << addressBits) - 1) 
-
+	memoryOffset := payload2
 
 	value := uint64(0)
 
@@ -165,7 +183,25 @@ func (machine *Machine) pID_inst(proc *MachineProcess) {
 	}
 }
 
-func (machine *Machine) bits_inst(proc *MachineProcess, payload uint64) {
+func (machine *Machine) bits_inst(proc *MachineProcess) {
+	var payload uint64
+	if proc.bit64 {
+		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		8,
+		))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8))
+
+	} else {
+		payload = uint64(binary.BigEndian.Uint32(GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
+		0,
+		4,
+		)))
+
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+4))
+	}
 	if payload == 32 {
 		proc.bit64 = false
 	} else if payload == 64 {

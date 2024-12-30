@@ -90,10 +90,13 @@ func main() {
 	checkAndLoadInConfigs()
 	args := os.Args[1:]
 
+
 	if len(args) > 0 {
-		if strings.Split(args[0], ".")[1] == "dabin" {
+		pathSplit := strings.Split(args[0], ".")
+		fileEnding := pathSplit[len(pathSplit)-1]  
+		if fileEnding == "dabin" {
 			loadProgramWithNewMachine(args[0]).run()
-		} else if strings.Split(args[0], ".")[1] == "da" {
+		} else if fileEnding == "da" {
 			output := strings.Split(args[0], ".")[0]
 			output += ".dabin"
 			if len(args) > 1 {
@@ -107,7 +110,7 @@ func main() {
 		if _, err := os.Stat("bios.dabin"); errors.Is(err, os.ErrNotExist) {
 			fmt.Println("Could not find a bios.dabin file to execute.")
 		} else {
-			loadProgramWithNewMachine(args[0]).run()
+			loadProgramWithNewMachine("bios.dabin").run()
 		}
 	}
 }

@@ -71,7 +71,7 @@ func (machine *Machine) should_shutdown() bool {
 	return len(machine.processes) < 1 
 }
 
-func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc *MachineProcess) {
+func (machine *Machine) run_instruction(instruction uint8, proc *MachineProcess) {
 	switch instruction {
 	case 0x0000: break 
 	case 0x0001: machine.add_inst(proc)
@@ -83,12 +83,12 @@ func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc
 	case 0x0007: machine.subF_inst(proc)
 	case 0x0008: machine.mulF_inst(proc)
 	case 0x0009: machine.divF_inst(proc)
-	case 0x000A: machine.store_inst(payload, proc)
-	case 0x000B: machine.load_inst(payload, proc)
+	case 0x000A: machine.store_inst(proc)
+	case 0x000B: machine.load_inst(proc)
 	case 0x000C: machine.syscallHandle(proc)
 	case 0x000D: machine.jump_inst(proc)
 	case 0x000E: machine.comp_inst(proc)
-	case 0x000F: machine.if_inst(payload, proc)
+	case 0x000F: machine.if_inst(proc)
 	case 0x0010: machine.inc_instruction(proc)
 	case 0x0011: machine.dec_instruction(proc)
 	case 0x0012: machine.bitAnd_inst(proc)
@@ -102,17 +102,17 @@ func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc
 	case 0x001A: machine.bitLShift_inst(proc)
 	case 0x001B: machine.bitRShift_inst(proc)
 	case 0x001C: machine.ext_inst(proc)
-	case 0x001D: machine.push_inst(payload, proc)
-	case 0x001E: machine.pop_inst(payload, proc)
+	case 0x001D: machine.push_inst(proc)
+	case 0x001E: machine.pop_inst(proc)
 	case 0x001F: machine.getReg_inst(proc)
 	case 0x0020: machine.setReg_inst(proc)
-	case 0x0021: machine.ptrHere_inst(payload, proc)
+	case 0x0021: machine.ptrHere_inst(proc)
 	case 0x0022: machine.free_inst(proc)
 	case 0x0023: machine.go_inst(proc)
 	case 0x0024: machine.pID_inst(proc)
 	case 0x0025: machine.memIncr_inst(proc)
 	case 0x0026: machine.memDec_inst(proc)
-	case 0x0027: machine.bits_inst(proc, payload)
+	case 0x0027: machine.bits_inst(proc)
 	case 0x0028: machine.machineData_inst(proc)
 	case 0x0029: machine.func_inst(proc)
 	case 0x002A: machine.exit_inst(proc)
