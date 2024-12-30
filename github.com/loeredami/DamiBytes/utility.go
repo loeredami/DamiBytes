@@ -6,7 +6,7 @@ import (
 	"unsafe"
 )
 
-func (machine *Machine) int_pop() {
+func (machine *MachineProcess) int_pop() {
 	if machine.bit64 {
 		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
 	} else {
@@ -77,7 +77,7 @@ func GetBytesFromPointer(ptr *byte, offset int, size int) []byte {
 }
 
 func (machine *Machine) handle_instruction(address *byte, proc *MachineProcess) {
-	if machine.bit64 {
+	if proc.bit64 {
 		full_inst := GetBytesFromPointer(address, 0, 8)
 		slices.Reverse(full_inst)
 		

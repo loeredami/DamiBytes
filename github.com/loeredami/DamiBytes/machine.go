@@ -20,13 +20,7 @@ type Machine struct {
 
 	memory []byte
 
-	external_map map[uint64]uint64
-
-	stackOpen bool
-	stack32   []uint32
-	stack64   []uint64
 	processes []*MachineProcess
-	bit64     bool
 }
 
 type MachineProcess struct {
@@ -34,21 +28,21 @@ type MachineProcess struct {
 	machine  *Machine
 	pID      uint64
 	state    byte
+
+	stack32   []uint32
+	stack64   []uint64
+	bit64     bool
 }
 
 func makeMachine(memSize uint64, processorCount uint16, regC uint64) *Machine {
 	registers := make([]uint64, regC)
 	memory := make([]byte, memSize)
 
-	external_map := map[uint64]uint64{}
-
-	stack32 := []uint32{}
-	stack64 := []uint64{}
 	processes := []*MachineProcess{}
 
 	return &Machine{
-		memSize, processorCount, regC, 0, registers, memory, external_map,
-		true, stack32, stack64, processes, false,
+		memSize, processorCount, regC, 0, registers, memory,
+		processes,
 	}
 }
 
@@ -67,6 +61,9 @@ func (machine *Machine) makeProcess(programP *byte) {
 		machine:  machine,
 		pID:      PID,
 		state:    state,
+		stack32:  []uint32{},
+		stack64:  []uint64{},
+		bit64:    false,
 	})
 }
 
@@ -77,47 +74,47 @@ func (machine *Machine) should_shutdown() bool {
 func (machine *Machine) run_instruction(instruction uint16, payload uint64, proc *MachineProcess) {
 	switch instruction {
 	case 0x0000: break 
-	case 0x0001: machine.add_inst()
-	case 0x0002: machine.sub_inst()
-	case 0x0003: machine.mul_inst()
-	case 0x0004: machine.div_inst()
-	case 0x0005: machine.mod_inst()
-	case 0x0006: machine.addF_inst()
-	case 0x0007: machine.subF_inst()
-	case 0x0008: machine.mulF_inst()
-	case 0x0009: machine.divF_inst()
-	case 0x000A: machine.store_inst(payload)
-	case 0x000B: machine.load_inst(payload)
-	case 0x000C: machine.syscallHandle()
+	case 0x0001: machine.add_inst(proc)
+	case 0x0002: machine.sub_inst(proc)
+	case 0x0003: machine.mul_inst(proc)
+	case 0x0004: machine.div_inst(proc)
+	case 0x0005: machine.mod_inst(proc)
+	case 0x0006: machine.addF_inst(proc)
+	case 0x0007: machine.subF_inst(proc)
+	case 0x0008: machine.mulF_inst(proc)
+	case 0x0009: machine.divF_inst(proc)
+	case 0x000A: machine.store_inst(payload, proc)
+	case 0x000B: machine.load_inst(payload, proc)
+	case 0x000C: machine.syscallHandle(proc)
 	case 0x000D: machine.jump_inst(proc)
-	case 0x000E: machine.comp_inst()
+	case 0x000E: machine.comp_inst(proc)
 	case 0x000F: machine.if_inst(payload, proc)
-	case 0x0010: machine.inc_instruction()
-	case 0x0011: machine.dec_instruction()
-	case 0x0012: machine.bitAnd_inst()
-	case 0x0013: machine.bitOr_inst()
-	case 0x0014: machine.bitNot_inst()
-	case 0x0015: machine.bitXor_inst()
+	case 0x0010: machine.inc_instruction(proc)
+	case 0x0011: machine.dec_instruction(proc)
+	case 0x0012: machine.bitAnd_inst(proc)
+	case 0x0013: machine.bitOr_inst(proc)
+	case 0x0014: machine.bitNot_inst(proc)
+	case 0x0015: machine.bitXor_inst(proc)
 	case 0x0016: machine.interruptOn_inst(proc)
-	case 0x0017: machine.interruptOf_inst()
+	case 0x0017: machine.interruptOf_inst(proc)
 	case 0x0018: // in
 	case 0x0019: // out
-	case 0x001A: machine.bitLShift_inst()
-	case 0x001B: machine.bitRShift_inst()
-	case 0x001C: machine.ext_inst()
-	case 0x001D: machine.push_inst(payload)
-	case 0x001E: machine.pop_inst(payload)
-	case 0x001F: machine.getReg_inst()
-	case 0x0020: machine.setReg_inst()
-	case 0x0021: machine.ptrHere_inst(payload)
-	case 0x0022: machine.free_inst()
-	case 0x0023: machine.go_inst()
+	case 0x001A: machine.bitLShift_inst(proc)
+	case 0x001B: machine.bitRShift_inst(proc)
+	case 0x001C: machine.ext_inst(proc)
+	case 0x001D: machine.push_inst(payload, proc)
+	case 0x001E: machine.pop_inst(payload, proc)
+	case 0x001F: machine.getReg_inst(proc)
+	case 0x0020: machine.setReg_inst(proc)
+	case 0x0021: machine.ptrHere_inst(payload, proc)
+	case 0x0022: machine.free_inst(proc)
+	case 0x0023: machine.go_inst(proc)
 	case 0x0024: machine.pID_inst(proc)
-	case 0x0025: machine.memIncr_inst()
-	case 0x0026: machine.memDec_inst()
-	case 0x0027: machine.bits_inst(payload)
-	case 0x0028: machine.machineData_inst()
-	case 0x0029: machine.func_inst()
+	case 0x0025: machine.memIncr_inst(proc)
+	case 0x0026: machine.memDec_inst(proc)
+	case 0x0027: machine.bits_inst(proc, payload)
+	case 0x0028: machine.machineData_inst(proc)
+	case 0x0029: machine.func_inst(proc)
 	case 0x002A: machine.exit_inst(proc)
 	default: break
 	}

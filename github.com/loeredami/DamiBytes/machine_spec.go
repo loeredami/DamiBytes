@@ -12,22 +12,15 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func (machine *Machine) ext_inst() {
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-
+func (machine *Machine) ext_inst(proc *MachineProcess) {
 	dllNamePtr := uint64(0)
 
-	if machine.bit64 {
-		dllNamePtr = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		dllNamePtr = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		dllNamePtr = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		dllNamePtr = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
 
 	dll, err := windows.LoadDLL(getStringFromByte((*byte)(unsafe.Pointer(uintptr(dllNamePtr)))))
@@ -38,53 +31,42 @@ func (machine *Machine) ext_inst() {
 
 	dllAddr := uintptr(unsafe.Pointer(dll))
 
-	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, uint64(dllAddr))
+	if proc.bit64 {
+		proc.stack64 = append(proc.stack64, uint64(dllAddr))
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(dllAddr))
+		proc.stack32 = append(proc.stack32, uint32(dllAddr))
 	}
-
-	machine.stackOpen = true
 }
 
-func (machine *Machine) func_inst() {
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-
+func (machine *Machine) func_inst(proc *MachineProcess) {
 	dllPtr := uint64(0)
 	funcNamePtr := uint64(0)
 
-	if machine.bit64 {
-		dllPtr = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-		funcNamePtr = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		dllPtr = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
+		funcNamePtr = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		dllPtr = uint64(machine.stack32[len(machine.stack64)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
-		funcNamePtr = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		dllPtr = uint64(proc.stack32[len(proc.stack64)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
+		funcNamePtr = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
 
 	dll := *(*windows.DLL)(unsafe.Pointer(uintptr(dllPtr)))
 
-	proc, err := dll.FindProc(getStringFromByte((*byte)(unsafe.Pointer(uintptr(funcNamePtr)))))
+	procW, err := dll.FindProc(getStringFromByte((*byte)(unsafe.Pointer(uintptr(funcNamePtr)))))
 
 	if err != nil {
 		panic(err)
 	}
 
-	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, uint64(proc.Addr()))
+	if proc.bit64 {
+		proc.stack64 = append(proc.stack64, uint64(procW.Addr()))
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(proc.Addr()))
+		proc.stack32 = append(proc.stack32, uint32(procW.Addr()))
 	}
-
-	machine.stackOpen = true
 }
 
 func (machine *Machine) exit_inst(proc *MachineProcess) {
@@ -93,26 +75,13 @@ func (machine *Machine) exit_inst(proc *MachineProcess) {
 
 func (machine *Machine) jump_inst(procC *MachineProcess) {
 	address := uint64(0)
-
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		address = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if procC.bit64 {
+		address = procC.stack64[len(procC.stack64)-1]
+		procC.stack64 = procC.stack64[:len(procC.stack64)-1]
 	} else {
-		address = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		address = uint64(procC.stack32[len(procC.stack32)-1])
+		procC.stack32 = procC.stack32[:len(procC.stack32)-1]
 	}
-
-	machine.stackOpen = true
-
-
 	procC.programP = (*byte)(unsafe.Pointer((uintptr)(address)))
 }
 
@@ -121,7 +90,7 @@ func (machine *Machine) if_inst(payload uint64, proc *MachineProcess) {
 	binary.LittleEndian.PutUint64(payloadBytes, payload)
 
 	addressBits := 44
-	if !machine.bit64 {
+	if !proc.bit64 {
 			addressBits = 21
 	}
 
@@ -129,25 +98,17 @@ func (machine *Machine) if_inst(payload uint64, proc *MachineProcess) {
 
 	memoryOffset := payload & ((1 << addressBits) - 1) 
 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
 
 	value := uint64(0)
 
-	if machine.bit64 {
-		value = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		value = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		value = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		value = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
 
-	machine.stackOpen = true
 
 	if (compType & uint64(comparisonResults.isEqual)) != 0 {
 		if (value & uint64(comparisonResults.isEqual)) != 0 {
@@ -164,26 +125,16 @@ func (machine *Machine) interruptOn_inst(proc *MachineProcess) {
 	proc.state |= PROCESS_SLEEPING
 }
 
-func (machine *Machine) interruptOf_inst() {
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-	machine.stackOpen = false
-
+func (machine *Machine) interruptOf_inst(proc *MachineProcess) {
 	PID := uint64(0)
 
-	if machine.bit64 {
-		PID = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		PID = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		PID = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		PID = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
-
-	machine.stackOpen = true
-
 	for _, proc := range machine.processes {
 		if proc.pID == PID {
 			proc.state = proc.state & (^PROCESS_SLEEPING)
@@ -192,133 +143,103 @@ func (machine *Machine) interruptOf_inst() {
 	}
 }
 
-func (machine *Machine) go_inst() {
+func (machine *Machine) go_inst(proc *MachineProcess) {
 	// Starting a new process, usually always end up being run on another thread.
 	address := uint64(0)
-	
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
 
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		address = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		address = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		address = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		address = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
-
-	machine.stackOpen = true
-
 	machine.makeProcess((*byte)(unsafe.Pointer(uintptr(address)-1)))
 }
 
 func (machine *Machine) pID_inst(proc *MachineProcess) {
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, proc.pID)
+	if proc.bit64 {
+		proc.stack64 = append(proc.stack64, proc.pID)
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(proc.pID))
+		proc.stack32 = append(proc.stack32, uint32(proc.pID))
 	}
-
-	machine.stackOpen = true
 }
 
-func (machine *Machine) bits_inst(payload uint64) {
+func (machine *Machine) bits_inst(proc *MachineProcess, payload uint64) {
 	if payload == 32 {
-		machine.bit64 = false
+		proc.bit64 = false
 	} else if payload == 64 {
-		machine.bit64 = true
+		proc.bit64 = true
 	} else {
-		machine.bit64 = !machine.bit64
+		proc.bit64 = !proc.bit64
 	}
 }
 
-func (machine *Machine) machineData_inst() {
+func (machine *Machine) machineData_inst(proc *MachineProcess) {
 	var key uint64
-
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		key = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		key = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		key = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		key = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
 	var messagePtr *byte
 
 	switch key {
 	case 0x0000:
-		if machine.bit64 {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack64[len(machine.stack64)-1])))
-			machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		if proc.bit64 {
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack64[len(proc.stack64)-1])))
+			proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 		} else {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack32[len(machine.stack32)-1])))
-			machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack32[len(proc.stack32)-1])))
+			proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 		}
 
 		streamStringToBytePointer(messagePtr, runtime.GOOS + string(rune(0x00)))
 	case 0x0001:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, uint64(runtime.NumCPU()))
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, uint64(runtime.NumCPU()))
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(runtime.NumCPU()))
+			proc.stack32 = append(proc.stack32, uint32(runtime.NumCPU()))
 		}
 	case 0x0002:
-		if machine.bit64 {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack64[len(machine.stack64)-1])))
-			machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		if proc.bit64 {
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack64[len(proc.stack64)-1])))
+			proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 		} else {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack32[len(machine.stack32)-1])))
-			machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack32[len(proc.stack32)-1])))
+			proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 		}
 		streamStringToBytePointer(messagePtr, runtime.GOARCH + string(rune(0x00)))
 	case 0x0003:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, memory.TotalMemory())
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, memory.TotalMemory())
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(memory.TotalMemory()))
+			proc.stack32 = append(proc.stack32, uint32(memory.TotalMemory()))
 		}
 	case 0x0004:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, memory.FreeMemory())
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, memory.FreeMemory())
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(memory.FreeMemory()))
+			proc.stack32 = append(proc.stack32, uint32(memory.FreeMemory()))
 		}
 	case 0x0005:
-		if machine.bit64 {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack64[len(machine.stack64)-1])))
-			machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		if proc.bit64 {
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack64[len(proc.stack64)-1])))
+			proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 		} else {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack32[len(machine.stack32)-1])))
-			machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack32[len(proc.stack32)-1])))
+			proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 		}
 		streamStringToBytePointer(messagePtr, string(runtime.CPUProfile()) + string(rune(0x00)))
 	case 0x0006:
-		if machine.bit64 {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack64[len(machine.stack64)-1])))
-			machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		if proc.bit64 {
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack64[len(proc.stack64)-1])))
+			proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 		} else {
-			messagePtr = (*byte)(unsafe.Pointer(uintptr(machine.stack32[len(machine.stack32)-1])))
-			machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+			messagePtr = (*byte)(unsafe.Pointer(uintptr(proc.stack32[len(proc.stack32)-1])))
+			proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 		}
 		path, err := os.UserHomeDir()
 		if err != nil {
@@ -326,68 +247,58 @@ func (machine *Machine) machineData_inst() {
 		}
 		streamStringToBytePointer(messagePtr, path + string(rune(0x00)))
 	case 0x0007:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, uint64(syscall.Stdin))
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, uint64(syscall.Stdin))
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(syscall.Stdin))
+			proc.stack32 = append(proc.stack32, uint32(syscall.Stdin))
 		}
 	case 0x0008:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, uint64(syscall.Stdout))
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, uint64(syscall.Stdout))
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(syscall.Stdout))
+			proc.stack32 = append(proc.stack32, uint32(syscall.Stdout))
 		}
 	case 0x0009:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, uint64(len(machine.memory)))
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, uint64(len(machine.memory)))
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(len(machine.memory)))
+			proc.stack32 = append(proc.stack32, uint32(len(machine.memory)))
 		}
 	case 0x000A:
-		if machine.bit64 {
-			machine.stack64 = append(machine.stack64, uint64(len(machine.stack64)))
+		if proc.bit64 {
+			proc.stack64 = append(proc.stack64, uint64(len(proc.stack64)))
 		} else {
-			machine.stack32 = append(machine.stack32, uint32(len(machine.stack32)))
+			proc.stack32 = append(proc.stack32, uint32(len(proc.stack32)))
 		}
 	}
-
-	machine.stackOpen = true
 }
 
 
-func (machine *Machine) syscallHandle() {
-	if machine.bit64 {
-		for {
-			if machine.stackOpen {
-				break
-			}
-		}
-
-		machine.stackOpen = false
-
-		if len(machine.stack64) < 1 {
+func (machine *Machine) syscallHandle(proc *MachineProcess) {
+	if proc.bit64 {
+		if len(proc.stack64) < 1 {
 			panic("syscallHandler: no syscall number on stack")
 		}
 
-		syscallNumber := machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		syscallNumber := proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 
-		if len(machine.stack64) < 1 {
+		if len(proc.stack64) < 1 {
 			panic("syscallHandler: missing argument count")
 		}
 
-		argCount := machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		argCount := proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 
-		if len(machine.stack64) < int(argCount) {
+		if len(proc.stack64) < int(argCount) {
 			panic("syscallHandler: not enough arguments on stack")
 		}
 
 		args := make([]uintptr, argCount)
 		
 		for i := 0; i < int(argCount); i++ {
-			args[i] = uintptr(machine.stack64[len(machine.stack64)-1])
-			machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+			args[i] = uintptr(proc.stack64[len(proc.stack64)-1])
+			proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 		}
 
 
@@ -397,42 +308,31 @@ func (machine *Machine) syscallHandle() {
 			panic(fmt.Sprintf("syscall failed: %v", err))
 		}
 
-		machine.stack64 = append(machine.stack64, uint64(ret))
-
-		machine.stackOpen = true
+		proc.stack64 = append(proc.stack64, uint64(ret))
 	} else {
-
-		for {
-			if machine.stackOpen {
-				break
-			}
-		}
-
-		machine.stackOpen = false
-
-		if len(machine.stack32) < 1 {
+		if len(proc.stack32) < 1 {
 			panic("syscallHandler: no syscall number on stack")
 		}
 
-		syscallNumber := machine.stack32[len(machine.stack32)-1]
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		syscallNumber := proc.stack32[len(proc.stack32)-1]
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 
-		if len(machine.stack32) < 1 {
+		if len(proc.stack32) < 1 {
 			panic("syscallHandler: missing argument count")
 		}
 
-		argCount := machine.stack32[len(machine.stack32)-1]
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		argCount := proc.stack32[len(proc.stack32)-1]
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 
-		if len(machine.stack32) < int(argCount) {
+		if len(proc.stack32) < int(argCount) {
 			panic("syscallHandler: not enough arguments on stack")
 		}
 
 		args := make([]uintptr, argCount)
 		
 		for i := 0; i < int(argCount); i++ {
-			args[i] = uintptr(machine.stack32[len(machine.stack32)-1])
-			machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+			args[i] = uintptr(proc.stack32[len(proc.stack32)-1])
+			proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 		}
 
 		
@@ -442,8 +342,7 @@ func (machine *Machine) syscallHandle() {
 			panic(fmt.Sprintf("syscall failed: %v", err))
 		}
 
-		machine.stack32 = append(machine.stack32, uint32(ret))
-		machine.stackOpen = true
+		proc.stack32 = append(proc.stack32, uint32(ret))
 	}
 }
 

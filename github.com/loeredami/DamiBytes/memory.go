@@ -42,105 +42,62 @@ func (machine *Machine) here_inst(proc *MachineProcess) {
 }
 */
 
-func (machine *Machine) memIncr_inst() {
+func (machine *Machine) memIncr_inst(proc *MachineProcess) {
 	var size uint64 = 0
-	
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		size = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		size = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		size = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		size = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
-
-	machine.stackOpen = true
 
 	machine.memory = append(machine.memory, make([]byte, size)...)
 }
 
-func (machine *Machine) memDec_inst() {
+func (machine *Machine) memDec_inst(proc *MachineProcess) {
 	var size uint64 = 0
-	
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		size = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+	if proc.bit64 {
+		size = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		size = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		size = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
-
-	machine.stackOpen = true
-
 	machine.memory = machine.memory[:len(machine.memory)-int(size)]
 }
 
-func (machine *Machine) free_inst() {
+func (machine *Machine) free_inst(proc *MachineProcess) {
 	address := uint64(0)
 	size := uint64(0)
 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
+	if proc.bit64 {
+		address = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		address = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
-
-		size = machine.stack64[len(machine.stack64)-1]
-		machine.stack64 = machine.stack64[:len(machine.stack64)-1]
+		size = proc.stack64[len(proc.stack64)-1]
+		proc.stack64 = proc.stack64[:len(proc.stack64)-1]
 	} else {
-		address = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		address = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 
-		size = uint64(machine.stack32[len(machine.stack32)-1])
-		machine.stack32 = machine.stack32[:len(machine.stack32)-1]
+		size = uint64(proc.stack32[len(proc.stack32)-1])
+		proc.stack32 = proc.stack32[:len(proc.stack32)-1]
 	}
-
-	machine.stackOpen = true
 
 	for i := address; i < address+size; i++ {
 		machine.memory[i] = 0x0000 // 0 but pretty hex formatting
 	}
 }
 
-func (machine *Machine) ptrHere_inst(payload uint64) {
+func (machine *Machine) ptrHere_inst(payload uint64, proc *MachineProcess) {
 	value := uintptr(unsafe.Pointer(&machine.memory[payload]))
 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
-	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, uint64(value))
+	if proc.bit64 {
+		proc.stack64 = append(proc.stack64, uint64(value))
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(value))
+		proc.stack32 = append(proc.stack32, uint32(value))
 	}
-	
-	machine.stackOpen = true
 }
 
 func (machine *Machine) loadValueFromMemory(address uint64, valueSize uint64) uint64 {
@@ -162,9 +119,9 @@ func (machine *Machine) store_value(address uint64, value uint64, valueSize uint
 }
 
 
-func (machine *Machine) store_inst(payload uint64) {
+func (machine *Machine) store_inst(payload uint64, proc *MachineProcess) {
 	addressBits := 44
-	if !machine.bit64 {
+	if !proc.bit64 {
 			addressBits = 21
 	}
 
@@ -173,52 +130,34 @@ func (machine *Machine) store_inst(payload uint64) {
 
 	// Extract address
 	address := payload & ((1 << addressBits) - 1) 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
-
 	
 	var value uint64
 
-	if !machine.bit64 {
-		value = uint64(machine.stack32[len(machine.stack32)-1])
+	if !proc.bit64 {
+		value = uint64(proc.stack32[len(proc.stack32)-1])
 	} else {
-		value = machine.stack64[len(machine.stack64)-1]
+		value = proc.stack64[len(proc.stack64)-1]
 	}
-	machine.int_pop()
-	machine.stackOpen = true
+	proc.int_pop()
 
 	machine.store_value(address, value, valueSize)
 }
 
-func (machine *Machine) load_inst(payload uint64) {
+func (machine *Machine) load_inst(payload uint64, proc *MachineProcess) {
 	addressBits := 44
-	if !machine.bit64 {
+	if !proc.bit64 {
 			addressBits = 21
 	}
 
 	valueSize := (payload >> (addressBits)) & 0x0F 
 
 	address := payload & ((1 << addressBits) - 1) 
-	for {
-		if machine.stackOpen {
-			break
-		}
-	}
-
-	machine.stackOpen = false
 
 	value := machine.loadValueFromMemory(address, valueSize)
 
-	if machine.bit64 {
-		machine.stack64 = append(machine.stack64, uint64(value))
+	if proc.bit64 {
+		proc.stack64 = append(proc.stack64, uint64(value))
 	} else {
-		machine.stack32 = append(machine.stack32, uint32(value))
+		proc.stack32 = append(proc.stack32, uint32(value))
 	}
-
-	machine.stackOpen =true
 }
