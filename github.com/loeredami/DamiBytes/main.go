@@ -1,51 +1,44 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/BurntSushi/toml"
 )
 
 type MachineInfo struct {
-	procC uint64 `toml:processor_count`
-	registryCount uint64 `toml:registry_count`
-	extraMemSize uint64 `toml:extra_memory_size`
+	ProC int `json:"processor_count"`
+	RegC int `json:"registry_count"`
+	MemSize int `json:"extra_memory_size"`
 }
 
 var machine_info MachineInfo
 
-type MachineConfig struct {
-	machineInfo MachineInfo `toml:MachineInfo`
-}
 
 func checkAndLoadInConfigs() {
-	var conf MachineConfig
-	data, err := os.ReadFile("config.toml")
+	data, err := os.ReadFile("config.json")
 
 	if err != nil {
 		data = []byte(
-`[MachineInfo]
-processor_count = 2
-registry_count = 4
-extra_memory_size = 1024
-`)
+`{
+	"processor_count": 2,
+	"registry_count": 4,
+	"extra_memory_size": 1024
+}`)
 	}
 
-	if _, err := toml.Decode(string(data), &conf); err == nil {
-		conf = MachineConfig{machineInfo: MachineInfo{procC: uint64(1), registryCount:  uint64(4), extraMemSize: uint64(1024)}}
-		machine_info = conf.machineInfo
-	} else {
+	err = json.Unmarshal(data, &machine_info)
+	
+	if err != nil {
 		fmt.Println("When loading config", err)
 		machine_info = MachineInfo{2, 4, 1024}
 	}
-
 }
 
 func buildMachineUsingConfigs(program []byte) *Machine {
-	machine := makeMachine(uint64(len(program))+machine_info.extraMemSize, uint16(machine_info.procC), machine_info.registryCount)
+	machine := makeMachine(uint64(len(program))+uint64(machine_info.MemSize), uint16(machine_info.ProC), uint64(machine_info.RegC))
 	
 	machine.streamInProgram(program, 0)
 

@@ -137,9 +137,6 @@ func (machine *Machine) tick() {
 			flagged_for_removal = append(flagged_for_removal, i)
 			continue
 		}
-		if (proc.state & PROCESS_SLEEPING) != 0 {
-			continue
-		}
 	}
 
 	for _, val := range flagged_for_removal {
@@ -153,6 +150,9 @@ func (machine *Machine) tick() {
 	}
 
 	for i, proc := range machine.processes {
+		if proc.state & PROCESS_SLEEPING != 0 {
+			continue
+		}
 		procSplit[i%int(machine.procC)] = append(procSplit[i%int(machine.procC)], proc)
 	}
 

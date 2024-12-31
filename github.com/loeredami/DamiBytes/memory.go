@@ -197,30 +197,39 @@ func (machine *Machine) store_inst(proc *MachineProcess) {
 
 func (machine *Machine) load_inst(proc *MachineProcess) {
 	var payload, payload2 uint64
+	var bytes, bytes2 []byte
 	if proc.bit64 {
-		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		bytes = GetBytesFromPointer(
 		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
 		0,
 		8,
-		))
-		payload2 = binary.BigEndian.Uint64(GetBytesFromPointer(
+		)
+
+		bytes2 =GetBytesFromPointer(
 		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8)),
 		0,
 		8,
-		))
+		)
+
+		payload = binary.BigEndian.Uint64(bytes)
+		payload2 = binary.BigEndian.Uint64(bytes2)
 		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+16))
 	} else {
-		payload = binary.BigEndian.Uint64(GetBytesFromPointer(
+		bytes = GetBytesFromPointer(
 		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP)))),
 		0,
 		4,
-		))
-		payload2 = binary.BigEndian.Uint64(GetBytesFromPointer(
-		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+4)),
+		)
+
+		bytes2 =GetBytesFromPointer(
+		(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8)),
 		0,
 		4,
-		))
-		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+8))
+		)
+
+		payload = uint64(binary.BigEndian.Uint32(bytes))
+		payload2 = uint64(binary.BigEndian.Uint32(bytes2))
+		proc.programP = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(proc.programP))+16))
 	}
 
 	valueSize := payload

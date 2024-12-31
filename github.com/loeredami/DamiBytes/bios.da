@@ -1,3 +1,4 @@
+index:
 # Set the bit mode
 bits 64
 
@@ -5,12 +6,33 @@ bits 64
 ptr main
 jump
 
-kernel:   "kernel32.dll" 0x00
-write:    "WriteFile"    0x00 
-message:  "Hello World\n" 0x00
+kernel:   "kernel32.dll" 0
+write:    "WriteFile"    0 
+message:  "Hello, World!\n" 0
 
-writeAddr: 0x00
-kernelAddr: 0x00
+writeAddr: 0
+kernelAddr: 0
+
+size: 0
+messagePtr: 0
+return: 0
+
+print:
+    push 0
+    load 8 size
+    load 8 messagePtr
+    #stdout {
+    push 0x08 data # data is another instruction, it was put inline to make it clearer
+    #}
+    # Number of Arguments
+    push 4
+    # Get the syscall Number from memory and push it on the stack once again. 
+    load 8 writeAddr
+    # Finally call the syscall
+    syscall
+
+    load 8 return
+    jump
 
 main:
     # Pushes the memory address of the strings.
@@ -30,22 +52,25 @@ main:
 
     store 8 writeAddr
 
-    # Arguments given in reverse order.
-    push 0
-    push 12
+    push 14
+    store 8 size
     ptr message
-    #stdout {
-    push 0x08
-    data
-    #}
-    # Number of Arguments
-    push 4
+    store 8 messagePtr
+    ptr helloWorldMessageDone
+    store 8 return 
+    ptr print
+    jump 
+    helloWorldMessageDone:
 
-    # Get the syscall Number from memory and push it on the stack once again. 
-    load 8 writeAddr
-
-    # Finally call the syscall
-    syscall
+    push 12
+    store 8 size
+    ptr kernel
+    store 8 messagePtr
+    ptr kernelMessageDone
+    store 8 return 
+    ptr print
+    jump 
+    kernelMessageDone:
 
     # This shuts down the current process, since it's the only one, the VM should simply shutdown.
     exit
